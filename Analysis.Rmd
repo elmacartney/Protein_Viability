@@ -1,0 +1,105 @@
+---
+title: "Protein on viability"
+author: "Erin Macartney"
+date: "21/01/2022"
+output: 
+    rmdformats::readthedown:
+      code_folding: hide
+      code_download: true
+      toc_depth: 4
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+message = FALSE,
+warning = FALSE,
+cache = TRUE, 
+tidy = TRUE, 
+echo = TRUE
+)
+
+rm(list = ls())
+```
+
+
+# Setting-up {.tabset}
+
+## Loading packages
+```{r}
+pacman::p_load(lme4,
+               here,
+               car,
+               tidyverse)
+```
+
+## Loading data
+```{r}
+dat <- read.csv(here("Data","Protein_viability.csv"))
+```
+
+## Sample sizes
+```{r}
+count(dat, lifestage)
+count(dat, parent)
+```
+
+## Making data long-form 
+```{r}
+dat1<- dat %>%
+  pivot_longer(cols = ends_with("_protein"), names_to = "Treatment", values_to = "Viability")
+```
+
+# Analysis 
+
+## Linear models {.tabset}
+
+### Simlpe linear model
+No effect of treatment on viability
+```{r}
+m1 <- lm(logit(Viability) ~ Treatment, dat = dat1)
+summary(m1)
+```
+
+### Including parental sex
+Also no effect
+
+#### With males included
+```{r}
+m2 <- lm(logit(Viability) ~ Treatment + parent, dat = dat1)
+summary(m2)
+```
+
+#### With males excluded
+```{r}
+dat1_nomales <- filter(dat1, parent %in% c("female", "both"))
+
+m2a <- lm(logit(Viability) ~ Treatment + parent, dat = dat1_nomales)
+summary(m2a)
+```
+
+### Including lifestage
+Also no effect
+
+#### With males included
+```{r}
+m3 <- lm(logit(Viability) ~ Treatment + parent + lifestage, dat = dat1)
+summary(m3)
+```
+
+#### With males excluded
+```{r}
+m3a <- lm(logit(Viability) ~ Treatment + parent + lifestage, dat = dat1_nomales)
+summary(m3a)
+```
+
+
+## Meta-analysis
+
+... haven't done yet
+
+# Plotting
+
+## Violin plot
+

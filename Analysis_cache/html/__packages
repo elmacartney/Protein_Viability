@@ -1,0 +1,15 @@
+base
+Matrix
+lme4
+here
+carData
+car
+tidyverse
+ggplot2
+tibble
+tidyr
+readr
+purrr
+dplyr
+stringr
+forcats
