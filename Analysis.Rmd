@@ -31,7 +31,8 @@ rm(list = ls())
 pacman::p_load(lme4,
                here,
                car,
-               tidyverse)
+               tidyverse,
+               ggpubr)
 ```
 
 ## Loading data
@@ -48,7 +49,7 @@ count(dat, parent)
 ## Making data long-form 
 ```{r}
 dat1<- dat %>%
-  pivot_longer(cols = ends_with("_protein"), names_to = "Treatment", values_to = "Viability")
+  pivot_longer(cols = ends_with("_protein"), names_to = "treatment", values_to = "viability")
 ```
 
 # Analysis 
@@ -58,7 +59,7 @@ dat1<- dat %>%
 ### Simlpe linear model
 No effect of treatment on viability
 ```{r}
-m1 <- lm(logit(Viability) ~ Treatment, dat = dat1)
+m1 <- lm(logit(viability) ~ treatment, dat = dat1)
 summary(m1)
 ```
 
@@ -67,7 +68,7 @@ Also no effect
 
 #### With males included
 ```{r}
-m2 <- lm(logit(Viability) ~ Treatment + parent, dat = dat1)
+m2 <- lm(logit(viability) ~ treatment + parent, dat = dat1)
 summary(m2)
 ```
 
@@ -75,7 +76,7 @@ summary(m2)
 ```{r}
 dat1_nomales <- filter(dat1, parent %in% c("female", "both"))
 
-m2a <- lm(logit(Viability) ~ Treatment + parent, dat = dat1_nomales)
+m2a <- lm(logit(viability) ~ treatment + parent, dat = dat1_nomales)
 summary(m2a)
 ```
 
@@ -84,22 +85,36 @@ Also no effect
 
 #### With males included
 ```{r}
-m3 <- lm(logit(Viability) ~ Treatment + parent + lifestage, dat = dat1)
+m3 <- lm(logit(viability) ~ treatment + parent + lifestage, dat = dat1)
 summary(m3)
 ```
 
 #### With males excluded
 ```{r}
-m3a <- lm(logit(Viability) ~ Treatment + parent + lifestage, dat = dat1_nomales)
+m3a <- lm(logit(viability) ~ treatment + parent + lifestage, dat = dat1_nomales)
 summary(m3a)
 ```
 
 
 ## Meta-analysis
+* note that I haven't looked at each individual papers diet manipulations but I went to convert Nyasembe et al (2021) IQR to SD and noticed that the manipulation appears to be glucose rather than protein because its blood vs blood + glucose. Should we still include this? In the mean time, it's excluded. 
 
-... haven't done yet
+### Calucluting lnRR and Variance
+``` {r}
+#lnRR 
+
+lnRR <- log(dat$high_protein) - log(dat$low_protein)
+
+#I hope this is calculated correctly.
+var <- (dat$high_sd)^2/((dat$n_HP)*(mean(dat$high_protein)^2)) + (dat$low_sd)^2/((dat$n_HP)*(mean(dat$low_protein)^2))
+
+```
+
 
 # Plotting
 
 ## Violin plot
-
+``` {r}
+p <- ggviolin(dat1_nomales, "treatment", "viability", color = "parent", add = c("jitter", "mean_sd"))
+p
+```
