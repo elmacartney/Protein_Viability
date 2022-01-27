@@ -1,7 +1,5 @@
 ---
 title: "Protein on viability"
-author: "Erin Macartney"
-date: "21/01/2022"
 output: 
     rmdformats::readthedown:
       code_folding: hide
@@ -61,6 +59,7 @@ dat1<- dat %>%
 ### Simlpe linear model
 No effect of treatment on viability
 ```{r}
+
 m1 <- lm(logit(viability) ~ treatment, dat = dat1)
 summary(m1)
 ```
@@ -97,6 +96,13 @@ m3a <- lm(logit(viability) ~ treatment + parent + lifestage, dat = dat1_nomales)
 summary(m3a)
 ```
 
+### Violin plot
+```{r}
+
+violin <- ggviolin(dat1, "treatment", "viability", color = "parent", add = c("jitter", "mean_sd"), add.params = list(shape = "triangle"))
+violin
+```
+
 ## Meta-analysis
 * note that I haven't looked at each individual papers diet manipulations but I went to convert Nyasembe et al (2021) IQR to SD and noticed that the manipulation appears to be of glucose rather than protein because its blood vs blood + glucose. Should we still include this? In the mean time, it's excluded. 
 
@@ -106,11 +112,22 @@ There is a package that does this but I have never used it before so it was easi
 dat2 <- dat %>%
   drop_na()
 
+#transforming data
+
+#transforming mean
+asin_trans <- function(percent) { asin(sqrt(percent/100)) }
+dat2$high_protein_asin <- asin_trans(dat2$high_protein) 
+dat2$low_protein_asin <- asin_trans(dat2$low_protein)
+
+#transforming SD
+dat2$high_sd_transform <- sqrt((dat2$high_sd/100)^2/(4*(dat2$high_protein/100)*(1-(dat2$high_protein/100))))
+dat2$low_sd_transform <- sqrt((dat2$low_sd/100)^2/(4*(dat2$low_protein/100)*(1-(dat2$low_protein/100))))
+
 #lnRR 
-dat2$lnRR <- log(dat2$high_protein) - log(dat2$low_protein)
+dat2$lnRR <- log(dat2$high_protein_asin) - log(dat2$low_protein_asin)
 
 #variance
-dat2$var <- (dat2$high_sd)^2/((dat2$n_HP)*(mean(dat2$high_protein)^2)) + (dat2$low_sd)^2/((dat2$n_HP)*(mean(dat2$low_protein)^2))
+dat2$var <- (dat2$high_sd_transform)^2/((dat2$n_HP)*(mean(dat2$high_protein_asin)^2)) + (dat2$low_sd_transform)^2/((dat2$n_HP)*(mean(dat2$low_protein_asin)^2))
 ```
 
 ## Meta-analytic model {.tabset}
@@ -120,6 +137,7 @@ No significant difference but a trend towards lower viability on high protein.
 
 ### Main model
 ```{r}
+
 m4 <- rma.mv(yi = lnRR, V = var, random = list(~1|esID,
                                                ~1|paperID),
                  test = "t",
@@ -131,8 +149,8 @@ orchard<- orchard_plot(m4, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard p
   geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5)+ # prediction intervals
   geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2)+ # confidence intervals
   geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
-  scale_colour_manual(values = "darkorange")+ # change colours
-  scale_fill_manual(values="darkorange")+ 
+  # scale_colour_manual(values = "darkorange")+ # change colours
+  # scale_fill_manual(values="darkorange")+ 
   scale_size_continuous(range = c(1, 7))+ # change point scaling
   theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
         text = element_text(size = 24), # change font sizes
