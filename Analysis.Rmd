@@ -13,7 +13,7 @@ editor_options:
 knitr::opts_chunk$set(
 message = FALSE,
 warning = FALSE,
-#cache = TRUE, 
+cache = TRUE, 
 tidy = TRUE, 
 echo = TRUE
 )
@@ -104,18 +104,19 @@ violin
 ```
 
 ## Meta-analysis
-* note that I haven't looked at each individual papers diet manipulations but I went to convert Nyasembe et al (2021) IQR to SD and noticed that the manipulation appears to be of glucose rather than protein because its blood vs blood + glucose. Should we still include this? In the mean time, it's excluded. 
 
 ### Calucluting lnRR and Variance
 There is a package that does this but I have never used it before so it was easier for me to do manually. 
 ``` {r}
+
+# DATASET WITH VARIANCE
 dat2 <- dat %>%
   drop_na()
 
 #transforming data
 
 #transforming mean
-asin_trans <- function(percent) { asin(sqrt(percent/100)) }
+asin_trans <- function(percent) {asin(sqrt(percent/100)) }
 dat2$high_protein_asin <- asin_trans(dat2$high_protein) 
 dat2$low_protein_asin <- asin_trans(dat2$low_protein)
 
@@ -128,14 +129,23 @@ dat2$lnRR <- log(dat2$high_protein_asin) - log(dat2$low_protein_asin)
 
 #variance
 dat2$var <- (dat2$high_sd_transform)^2/((dat2$n_HP)*(mean(dat2$high_protein_asin)^2)) + (dat2$low_sd_transform)^2/((dat2$n_HP)*(mean(dat2$low_protein_asin)^2))
+
+# DATASET WITHOUT VARIANCE
+dat <- droplevels(dat[!dat$authors == 'Polak et al',])
+
+dat$high_protein_asin <- asin_trans(dat$high_protein) 
+dat$low_protein_asin <- asin_trans(dat$low_protein)
+
+dat$lnRR <- log(dat$high_protein_asin) - log(dat$low_protein_asin)
+
 ```
 
-## Meta-analytic model {.tabset}
+## Meta-analytic model 
 Note that I haven't included species because each paper nearly uses a different species which will make species and paperID non-indentifiable.This is almost nearly the case with paper ID and esID. 
 
 No significant difference but a trend towards lower viability on high protein. 
 
-### Main model
+## MA with variance {.tabset}
 ```{r}
 
 m4 <- rma.mv(yi = lnRR, V = var, random = list(~1|esID,
@@ -186,3 +196,102 @@ orchard2 <- orchard_plot(m4a, mod = "parent", xlab = "lnRR", alpha=0.4) +
 orchard2
 ```
 
+### Meta-regression of lifeatge
+
+```{r}
+m4b <- rma.mv(yi = lnRR, V = var, mod = ~lifestage-1, random = list(~1|esID,
+                                               ~1|paperID),
+                 test = "t",
+                 data = dat2)
+summary(m4b) 
+r2_ml(m4b)
+
+orchard3 <- orchard_plot(m4b, mod = "lifestage", xlab = "lnRR", alpha=0.4) + 
+  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
+  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
+  scale_colour_manual(values = c("grey34","grey34")) +
+  scale_fill_manual(values=c("grey34","grey34")) +
+  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
+  scale_size_continuous(range = c(1, 7))+ # change point scaling
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
+       text = element_text(size = 15), # change font sizes
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 10)) 
+
+orchard3
+```
+
+## Main model with equal variance {.tabset}
+```{r}
+m5 <- rma.mv(yi = lnRR, V = 1, random = list(~1|esID,
+                                               ~1|paperID),
+                 test = "t",
+                 data = dat)
+summary(m5) 
+i2_ml(m5)
+
+orchard4<- orchard_plot(m5, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard plot 
+  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5)+ # prediction intervals
+  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2)+ # confidence intervals
+  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
+  # scale_colour_manual(values = "darkorange")+ # change colours
+  # scale_fill_manual(values="darkorange")+ 
+  scale_size_continuous(range = c(1, 7))+ # change point scaling
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
+        text = element_text(size = 24), # change font sizes
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 13)) 
+
+orchard4
+```
+
+### Meta-regression of parent
+
+```{r}
+dat <- filter(dat, parent %in% c("female","both"))
+
+m5a <- rma.mv(yi = lnRR, V = 1, mod = ~parent-1, random = list(~1|esID,
+                                               ~1|paperID),
+                 test = "t",
+                 data = dat)
+summary(m5a) 
+
+
+orchard5 <- orchard_plot(m5a, mod = "parent", xlab = "lnRR", alpha=0.4) + 
+  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
+  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
+  scale_colour_manual(values = c("grey34","grey34")) +
+  scale_fill_manual(values=c("grey34","grey34")) +
+  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
+  scale_size_continuous(range = c(1, 7))+ # change point scaling
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
+       text = element_text(size = 15), # change font sizes
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 10)) 
+
+orchard5
+```
+
+### Meta-regression of lifeatge
+
+```{r}
+m5b <- rma.mv(yi = lnRR, V = 1, mod = ~lifestage-1, random = list(~1|esID,
+                                               ~1|paperID),
+                 test = "t",
+                 data = dat)
+summary(m5b) 
+
+orchard6 <- orchard_plot(m5b, mod = "lifestage", xlab = "lnRR", alpha=0.4) + 
+  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
+  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
+  scale_colour_manual(values = c("grey34","grey34")) +
+  scale_fill_manual(values=c("grey34","grey34")) +
+  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
+  scale_size_continuous(range = c(1, 7))+ # change point scaling
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
+       text = element_text(size = 15), # change font sizes
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 10)) 
+
+orchard6
+```
