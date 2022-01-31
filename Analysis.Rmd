@@ -13,7 +13,7 @@ editor_options:
 knitr::opts_chunk$set(
 message = FALSE,
 warning = FALSE,
-cache = TRUE, 
+#cache = TRUE, 
 tidy = TRUE, 
 echo = TRUE
 )
@@ -175,10 +175,13 @@ orchard
 Parent explains ~5% of total varition with a trend for a stronger reduction in viability with high protein in females (although k should be taken into consideration)
 
 ```{r}
+
+dat2_nomales <- filter(dat2, parent %in% c("female", "mixed sex"))
+  
 m4a <- rma.mv(yi = lnRR, V = var, mod = ~parent-1, random = list(~1|esID,
                                                ~1|paperID),
                  test = "t",
-                 data = dat2)
+                 data = dat2_nomales)
 summary(m4a) 
 r2_ml(m4a)
 
@@ -259,4 +262,54 @@ panel1
 ```{r, fig.width=15, fig.height=7}
 panel2 <- (orchard2 + orchard3) + plot_annotation(tag_levels = "A")
 panel2
+```
+
+## Leave-one-out analysis
+
+```{r}
+
+dat2<- dat2 %>% mutate(leave_out = paste(first_author, year, sep = "_"))
+dat2$leave_out<- as.factor(dat2$leave_out)
+dat2$year <- as.integer(dat2$year)
+
+LeaveOneOut_effectsize <- list()
+for(i in 1:length(levels(dat2$leave_out)))
+    {
+  LeaveOneOut_effectsize[[i]] <- rma.mv(yi = lnRR, V = var, 
+                                        random = list(~1 | esID,~1| paperID), 
+                                        method = "REML", data = dat2[dat2$leave_out != levels(dat2$leave_out)[i], ])
+      }
+
+
+# writing function for extracting est, ci.lb, and ci.ub from all models
+est.func <- function(m4){
+  df <- data.frame(est = m4$b, lower = m4$ci.lb, upper = m4$ci.ub)
+  return(df)
+}
+
+
+#using dplyr to form data frame
+MA_CVR <- lapply(LeaveOneOut_effectsize, function(x) est.func(x))%>% bind_rows %>% mutate(left_out = levels(dat2$leave_out))
+
+#telling ggplot to stop reordering factors
+ MA_CVR$left_out  <- as.factor(MA_CVR$left_out )
+ MA_CVR$left_out <- factor(MA_CVR$left_out,  levels = MA_CVR$left_out)
+
+
+#plotting
+leaveoneout <- ggplot(MA_CVR) +
+  geom_hline(yintercept = 0, lty = 2, lwd = 1) +
+  geom_hline(yintercept = m4$ci.lb, lty = 3, lwd = 0.75, colour = "black") +
+  geom_hline(yintercept = m4$b, lty = 1, lwd = 0.75, colour = "black") +
+  geom_hline(yintercept = m4$ci.ub, lty = 3, lwd = 0.75, colour = "black") +
+  geom_pointrange(aes(x = left_out, y = est, ymin = lower, ymax = upper)) +
+  xlab("Study left out") + 
+  ylab("lnRR, 95% CI") + 
+  coord_flip() +
+  theme(panel.grid.minor = element_blank())+
+  theme_bw() + theme(panel.grid.major = element_blank()) +
+  theme(panel.grid.minor.x = element_blank() ) +
+  theme(axis.text.y = element_text(size = 6))
+
+leaveoneout
 ```
