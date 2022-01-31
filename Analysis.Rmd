@@ -32,7 +32,8 @@ pacman::p_load(lme4,
                tidyverse,
                ggpubr,
                orchaRd,
-               metafor)
+               metafor,
+               patchwork)
 ```
 
 ## Loading data
@@ -75,7 +76,7 @@ summary(m2)
 
 #### With males excluded
 ```{r}
-dat1_nomales <- filter(dat1, parent %in% c("female", "both"))
+dat1_nomales <- filter(dat1, parent %in% c("female", "mixed sex"))
 
 m2a <- lm(logit(viability) ~ treatment + parent, dat = dat1_nomales)
 summary(m2a)
@@ -105,7 +106,7 @@ violin
 
 ## Meta-analysis
 
-### Calucluting lnRR and Variance
+### Calculating lnRR and Variance
 There is a package that does this but I have never used it before so it was easier for me to do manually. 
 ``` {r}
 
@@ -245,53 +246,17 @@ orchard4<- orchard_plot(m5, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard 
 orchard4
 ```
 
-### Meta-regression of parent
 
-```{r}
-dat <- filter(dat, parent %in% c("female","both"))
+## Figures
 
-m5a <- rma.mv(yi = lnRR, V = 1, mod = ~parent-1, random = list(~1|esID,
-                                               ~1|paperID),
-                 test = "t",
-                 data = dat)
-summary(m5a) 
-
-
-orchard5 <- orchard_plot(m5a, mod = "parent", xlab = "lnRR", alpha=0.4) + 
-  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
-  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
-  scale_colour_manual(values = c("grey34","grey34")) +
-  scale_fill_manual(values=c("grey34","grey34")) +
-  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
-  scale_size_continuous(range = c(1, 7))+ # change point scaling
-  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
-       text = element_text(size = 15), # change font sizes
-        legend.title = element_text(size = 10),
-        legend.text = element_text(size = 10)) 
-
-orchard5
+### Meta-analyses
+```{r, fig.width=15, fig.height=7}
+panel1 <- (orchard4 + orchard) + plot_annotation(tag_levels = "A")
+panel1
 ```
 
-### Meta-regression of lifeatge
-
-```{r}
-m5b <- rma.mv(yi = lnRR, V = 1, mod = ~lifestage-1, random = list(~1|esID,
-                                               ~1|paperID),
-                 test = "t",
-                 data = dat)
-summary(m5b) 
-
-orchard6 <- orchard_plot(m5b, mod = "lifestage", xlab = "lnRR", alpha=0.4) + 
-  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
-  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
-  scale_colour_manual(values = c("grey34","grey34")) +
-  scale_fill_manual(values=c("grey34","grey34")) +
-  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
-  scale_size_continuous(range = c(1, 7))+ # change point scaling
-  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
-       text = element_text(size = 15), # change font sizes
-        legend.title = element_text(size = 10),
-        legend.text = element_text(size = 10)) 
-
-orchard6
+### Meta-regression
+```{r, fig.width=15, fig.height=7}
+panel2 <- (orchard2 + orchard3) + plot_annotation(tag_levels = "A")
+panel2
 ```
