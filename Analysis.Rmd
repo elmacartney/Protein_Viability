@@ -38,7 +38,7 @@ pacman::p_load(lme4,
 
 ## Loading data
 ```{r}
-dat <- read.csv(here("Data","Protein_viability.csv"))
+dat <- read.csv(here("Data","Protein_viability_2.csv"))
 ```
 
 ## Sample sizes
@@ -132,8 +132,6 @@ dat2$lnRR <- log(dat2$high_protein_asin) - log(dat2$low_protein_asin)
 dat2$var <- (dat2$high_sd_transform)^2/((dat2$n_HP)*(mean(dat2$high_protein_asin)^2)) + (dat2$low_sd_transform)^2/((dat2$n_HP)*(mean(dat2$low_protein_asin)^2))
 
 # DATASET WITHOUT VARIANCE
-dat <- droplevels(dat[!dat$authors == 'Polak et al',])
-
 dat$high_protein_asin <- asin_trans(dat$high_protein) 
 dat$low_protein_asin <- asin_trans(dat$low_protein)
 
@@ -142,15 +140,12 @@ dat$lnRR <- log(dat$high_protein_asin) - log(dat$low_protein_asin)
 ```
 
 ## Meta-analytic model 
-Note that I haven't included species because each paper nearly uses a different species which will make species and paperID non-indentifiable.This is almost nearly the case with paper ID and esID. 
-
-No significant difference but a trend towards lower viability on high protein. 
-
 ## MA with variance {.tabset}
 ```{r}
 
 m4 <- rma.mv(yi = lnRR, V = var, random = list(~1|esID,
-                                               ~1|paperID),
+                                               ~1|paperID,
+                                               ~1|order),
                  test = "t",
                  data = dat2)
 summary(m4) 
@@ -176,20 +171,21 @@ Parent explains ~5% of total varition with a trend for a stronger reduction in v
 
 ```{r}
 
-dat2_nomales <- filter(dat2, parent %in% c("female", "mixed sex"))
+#dat2_nomales <- filter(dat2, parent %in% c("female", "mixed sex"))
   
 m4a <- rma.mv(yi = lnRR, V = var, mod = ~parent-1, random = list(~1|esID,
-                                               ~1|paperID),
+                                               ~1|paperID,
+                                               ~1|order),
                  test = "t",
-                 data = dat2_nomales)
+                 data = dat2)
 summary(m4a) 
 r2_ml(m4a)
 
 orchard2 <- orchard_plot(m4a, mod = "parent", xlab = "lnRR", alpha=0.4) + 
   geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
   geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
-  scale_colour_manual(values = c("grey34","grey34")) +
-  scale_fill_manual(values=c("grey34","grey34")) +
+  scale_colour_manual(values = c("grey34","grey34", "grey34")) +
+  scale_fill_manual(values=c("grey34","grey34", "grey34")) +
   geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
   scale_size_continuous(range = c(1, 7))+ # change point scaling
   theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
@@ -204,7 +200,8 @@ orchard2
 
 ```{r}
 m4b <- rma.mv(yi = lnRR, V = var, mod = ~lifestage-1, random = list(~1|esID,
-                                               ~1|paperID),
+                                               ~1|paperID,
+                                               ~1|order),
                  test = "t",
                  data = dat2)
 summary(m4b) 
@@ -228,7 +225,8 @@ orchard3
 ## Main model with equal variance {.tabset}
 ```{r}
 m5 <- rma.mv(yi = lnRR, V = 1, random = list(~1|esID,
-                                               ~1|paperID),
+                                               ~1|paperID,
+                                             ~1|order),
                  test = "t",
                  data = dat)
 summary(m5) 
