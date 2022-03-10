@@ -181,7 +181,7 @@ orchard4
 
 ### Figure 2
 ```{r, fig.width=15, fig.height=7, message=FALSE}
-panel2 <- (orchard3 + orchard4) + plot_annotation(tag_levels = "A")
+panel2 <- (orchard4 + orchard3) + plot_annotation(tag_levels = "A")
 panel2
 ```
 
