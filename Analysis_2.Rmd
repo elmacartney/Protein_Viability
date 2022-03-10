@@ -1,5 +1,5 @@
 ---
-title: "Protein on viability"
+title: "Protein on Egg Viability"
 output: 
     rmdformats::readthedown:
       code_folding: hide
@@ -8,20 +8,6 @@ output:
 editor_options: 
   chunk_output_type: console
 ---
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-message = FALSE,
-warning = FALSE,
-#cache = TRUE, 
-tidy = TRUE, 
-echo = TRUE
-)
-
-rm(list = ls())
-```
-
-
 # Setting-up {.tabset}
 
 ## Loading packages
@@ -46,68 +32,9 @@ dat <- read.csv(here("Data","Protein_viability_2.csv"))
 count(dat, lifestage)
 count(dat, parent)
 ```
-
-## Making data long-form 
-```{r}
-dat1<- dat %>%
-  pivot_longer(cols = ends_with("_protein"), names_to = "treatment", values_to = "viability")
-```
-
 # Analysis 
 
-## Linear models {.tabset}
-
-### Simlpe linear model
-No effect of treatment on viability
-```{r}
-
-m1 <- lm(logit(viability) ~ treatment, dat = dat1)
-summary(m1)
-```
-
-### Including parental sex
-Also no effect
-
-#### With males included
-```{r}
-m2 <- lm(logit(viability) ~ treatment + parent, dat = dat1)
-summary(m2)
-```
-
-#### With males excluded
-```{r}
-dat1_nomales <- filter(dat1, parent %in% c("female", "mixed sex"))
-
-m2a <- lm(logit(viability) ~ treatment + parent, dat = dat1_nomales)
-summary(m2a)
-```
-
-### Including lifestage
-Also no effect
-
-#### With males included
-```{r}
-m3 <- lm(logit(viability) ~ treatment + parent + lifestage, dat = dat1)
-summary(m3)
-```
-
-#### With males excluded
-```{r}
-m3a <- lm(logit(viability) ~ treatment + parent + lifestage, dat = dat1_nomales)
-summary(m3a)
-```
-
-### Violin plot
-```{r}
-
-violin <- ggviolin(dat1, "treatment", "viability", color = "parent", add = c("jitter", "mean_sd"), add.params = list(shape = "triangle"))
-violin
-```
-
-## Meta-analysis
-
-### Calculating lnRR and Variance
-There is a package that does this but I have never used it before so it was easier for me to do manually. 
+## Calculating lnRR and Variance
 ``` {r}
 
 # DATASET WITH VARIANCE
@@ -137,22 +64,23 @@ dat$low_protein_asin <- asin_trans(dat$low_protein)
 
 dat$lnRR <- log(dat$high_protein_asin) - log(dat$low_protein_asin)
 
-write.csv(dat2,'processed_data.csv')
+#write.csv(dat2,'processed_data.csv')
 ```
 
-## Meta-analytic model 
-## MA with variance {.tabset}
+## Meta-analysis {.tabset}
+
+### MA with variance
 ```{r}
 
-m4 <- rma.mv(yi = lnRR, V = var, random = list(~1|esID,
+m1 <- rma.mv(yi = lnRR, V = var, random = list(~1|esID,
                                                ~1|paperID,
                                                ~1|order),
                  test = "t",
                  data = dat2)
-summary(m4) 
-i2_ml(m4)
+summary(m1) 
+i2_ml(m1)
 
-orchard<- orchard_plot(m4, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard plot 
+orchard<- orchard_plot(m1, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard plot 
   geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5)+ # prediction intervals
   geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2)+ # confidence intervals
   geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
@@ -167,72 +95,17 @@ orchard<- orchard_plot(m4, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard p
 orchard
 ```
 
-### Meta-regression of parent
-Parent explains ~5% of total varition with a trend for a stronger reduction in viability with high protein in females (although k should be taken into consideration)
-
+### MA with equal variance
 ```{r}
-#dat2_nomales <- filter(dat2, parent %in% c("female", "mixed sex"))
-  
-m4a <- rma.mv(yi = lnRR, V = var, mod = ~parent-1, random = list(~1|esID,
-                                               ~1|paperID,
-                                               ~1|order),
-                 test = "t",
-                 data = dat2)
-summary(m4a) 
-r2_ml(m4a)
-
-orchard2 <- orchard_plot(m4a, mod = "parent", xlab = "lnRR", alpha=0.4) + 
-  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
-  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
-  scale_colour_manual(values = c("grey34","grey34", "grey34")) +
-  scale_fill_manual(values=c("grey34","grey34", "grey34")) +
-  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
-  scale_size_continuous(range = c(1, 7))+ # change point scaling
-  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
-       text = element_text(size = 15), # change font sizes
-        legend.title = element_text(size = 10),
-        legend.text = element_text(size = 10)) 
-
-orchard2
-```
-
-### Meta-regression of lifeatge
-
-```{r}
-m4b <- rma.mv(yi = lnRR, V = var, mod = ~lifestage-1, random = list(~1|esID,
-                                               ~1|paperID,
-                                               ~1|order),
-                 test = "t",
-                 data = dat2)
-summary(m4b) 
-r2_ml(m4b)
-
-orchard3 <- orchard_plot(m4b, mod = "lifestage", xlab = "lnRR", alpha=0.4) + 
-  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
-  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
-  scale_colour_manual(values = c("grey34","grey34")) +
-  scale_fill_manual(values=c("grey34","grey34")) +
-  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
-  scale_size_continuous(range = c(1, 7))+ # change point scaling
-  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
-       text = element_text(size = 15), # change font sizes
-        legend.title = element_text(size = 10),
-        legend.text = element_text(size = 10)) 
-
-orchard3
-```
-
-## Main model with equal variance {.tabset}
-```{r}
-m5 <- rma.mv(yi = lnRR, V = 1, random = list(~1|esID,
-                                               ~1|paperID,
-                                             ~1|order),
+m2 <- rma.mv(yi = lnRR, V = 1, random = list(~1|esID,
+                                            ~1|paperID,
+                                            ~1|order),
                  test = "t",
                  data = dat)
-summary(m5) 
-i2_ml(m5)
+summary(m2) 
+i2_ml(m2)
 
-orchard4<- orchard_plot(m5, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard plot 
+orchard2<- orchard_plot(m2, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard plot 
   geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5)+ # prediction intervals
   geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2)+ # confidence intervals
   geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
@@ -244,27 +117,83 @@ orchard4<- orchard_plot(m5, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard 
         legend.title = element_text(size = 15),
         legend.text = element_text(size = 13)) 
 
-orchard4
+orchard2
 ```
 
-
-## Figures
-
-### Meta-analyses
-```{r, fig.width=15, fig.height=7}
-panel1 <- (orchard4 + orchard) + plot_annotation(tag_levels = "A")
+### Figure 1
+```{r, fig.width=15, fig.height=7, message=FALSE}
+panel1 <- (orchard + orchard2) + plot_annotation(tag_levels = "A")
 panel1
 ```
 
-### Meta-regression
+## Meta-regression {.tabset}
 Meta-regression was done using studies for which we could calculate variance
-```{r, fig.width=15, fig.height=7}
-panel2 <- (orchard2 + orchard3) + plot_annotation(tag_levels = "A")
+
+### Sex
+```{r}
+m3<- rma.mv(yi = lnRR, V = var, mod = ~parent-1, random = list(~1|esID,
+                                               ~1|paperID,
+                                               ~1|order),
+                 test = "t",
+                 data = dat2)
+summary(m3) 
+r2_ml(m3)
+
+orchard3 <- orchard_plot(m3, mod = "parent", xlab = "lnRR", alpha=0.4) + 
+  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
+  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
+  scale_colour_manual(values = c("grey34","grey34", "grey34")) +
+  scale_fill_manual(values=c("grey34","grey34", "grey34")) +
+  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
+  scale_size_continuous(range = c(1, 7))+ # change point scaling
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
+       text = element_text(size = 15), # change font sizes
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 10)) 
+
+orchard3
+```
+
+### lifestage
+```{r}
+m4 <- rma.mv(yi = lnRR, V = var, mod = ~lifestage-1, random = list(~1|esID,
+                                               ~1|paperID,
+                                               ~1|order),
+                 test = "t",
+                 data = dat2)
+summary(m4) 
+r2_ml(m4)
+
+orchard4 <- orchard_plot(m4, mod = "lifestage", xlab = "lnRR", alpha=0.4) + 
+  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction intervals
+  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) + # confidence intervals
+  scale_colour_manual(values = c("grey34","grey34")) +
+  scale_fill_manual(values=c("grey34","grey34")) +
+  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
+  scale_size_continuous(range = c(1, 7))+ # change point scaling
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
+       text = element_text(size = 15), # change font sizes
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 10)) 
+
+orchard4
+```
+
+### Figure 2
+```{r, fig.width=15, fig.height=7, message=FALSE}
+panel2 <- (orchard3 + orchard4) + plot_annotation(tag_levels = "A")
 panel2
 ```
 
-## Leave-one-out analysis
+## Publication bias and sensitivity analysis {.tabset}
+PB and sensitivity analysis was done using studies for which we could calculate variance
 
+### Funnel plot
+```{r}
+funnel(m1)
+```
+
+### Leave-one-group-out sensitivity analysis
 ```{r}
 
 dat2<- dat2 %>% mutate(leave_out = paste(first_author, year, sep = "_"))
@@ -281,8 +210,8 @@ for(i in 1:length(levels(dat2$leave_out)))
 
 
 # writing function for extracting est, ci.lb, and ci.ub from all models
-est.func <- function(m4){
-  df <- data.frame(est = m4$b, lower = m4$ci.lb, upper = m4$ci.ub)
+est.func <- function(m1){
+  df <- data.frame(est = m1$b, lower = m1$ci.lb, upper = m1$ci.ub)
   return(df)
 }
 
@@ -298,9 +227,9 @@ MA_CVR <- lapply(LeaveOneOut_effectsize, function(x) est.func(x))%>% bind_rows %
 #plotting
 leaveoneout <- ggplot(MA_CVR) +
   geom_hline(yintercept = 0, lty = 2, lwd = 1) +
-  geom_hline(yintercept = m4$ci.lb, lty = 3, lwd = 0.75, colour = "black") +
-  geom_hline(yintercept = m4$b, lty = 1, lwd = 0.75, colour = "black") +
-  geom_hline(yintercept = m4$ci.ub, lty = 3, lwd = 0.75, colour = "black") +
+  geom_hline(yintercept = m1$ci.lb, lty = 3, lwd = 0.75, colour = "black") +
+  geom_hline(yintercept = m1$b, lty = 1, lwd = 0.75, colour = "black") +
+  geom_hline(yintercept = m1$ci.ub, lty = 3, lwd = 0.75, colour = "black") +
   geom_pointrange(aes(x = left_out, y = est, ymin = lower, ymax = upper)) +
   xlab("Study left out") + 
   ylab("lnRR, 95% CI") + 
