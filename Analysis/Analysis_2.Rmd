@@ -1,5 +1,5 @@
 ---
-title: "Protein on Egg Viability"
+title: "Supplementary Material S2"
 output: 
     rmdformats::readthedown:
       code_folding: hide
@@ -19,12 +19,19 @@ pacman::p_load(lme4,
                ggpubr,
                orchaRd,
                metafor,
-               patchwork)
+               patchwork,
+               rotl,
+               phytools,
+               timetree,
+               ape)
 ```
 
 ## Loading data
 ```{r}
 dat <- read.csv(here("Data","Protein_viability_2.csv"))
+
+#loading processed data for reduced model
+# dat2 <- read.csv(here("Data","processed_data.csv"))
 ```
 
 ## Sample sizes
@@ -32,7 +39,6 @@ dat <- read.csv(here("Data","Protein_viability_2.csv"))
 count(dat, lifestage)
 count(dat, parent)
 ```
-# Analysis 
 
 ## Calculating lnRR and Variance
 ``` {r}
@@ -67,9 +73,94 @@ dat$lnRR <- log(dat$high_protein_asin) - log(dat$low_protein_asin)
 #write.csv(dat2,'processed_data.csv')
 ```
 
-## Meta-analysis {.tabset}
+## Creating species tree for analysis
 
-### MA with variance
+### Reduced dataset
+```{r, warning=FALSE}
+dat2$species <- as.character(dat2$species)
+
+synons <- tnrs_match_names(unique(dat2$species))
+
+tree <- tol_induced_subtree(ott_ids = synons$ott_id, label_format = "name")
+
+plot(tree, show.tip.label = T, cex = 0.8, no.margin = TRUE) 
+
+#ALL NAMES ARE MATCHING, IN TREE,AND TREE IS BINARY
+intersect(as.character(tree$tip.label), dat2$species) ## checking which names are matching 
+# 
+setdiff(dat2$species, as.character(tree$tip.label)) ## checking which names are not matching 
+
+#inspecting names its not matching 
+inspect(synons, taxon_name = "Drosophila_melanogaster")
+synon1 <- update(synons, taxon_name = "Drosophila_melanogaster", new_row_number = 1)
+inspect(synons, taxon_name = "Telostylinus_angusticollis")
+synon2 <- update(synon1, taxon_name = "Telostylinus_angusticollis", new_row_number = 1)
+inspect(synons, taxon_name = "Bracon_hebetor")
+synon3 <- update(synon2, taxon_name = "Bracon_hebetor", new_row_number = 1)
+inspect(synons, taxon_name = "Bactrocera_cucurbitae")
+synon4 <- update(synon3, taxon_name = "Bactrocera_cucurbitae", new_row_number = 1)
+inspect(synons, taxon_name = "Chrysoperla_carnea")
+synon5 <- update(synon4, taxon_name = "Chrysoperla_carnea", new_row_number = 1)
+
+tree2 <- tol_induced_subtree(ott_ids = synon5$ott_id, label_format= "name")
+plot(tree2, show.tip.label = T, cex = 0.8, no.margin = TRUE)
+
+#need to change dataset names to match tree names
+dat2$species[dat2$species == "Telostylinus_angusticollis"] <- "Derocephalus_angusticollis"
+dat2$species[dat2$species == "Bracon_hebetor"] <- "Habrobracon_hebetor"
+dat2$species[dat2$species == "Bactrocera_cucurbitae"] <- "Zeugodacus_cucurbitae"
+
+setdiff(dat2$species, as.character(tree2$tip.label)) ## checking which names are not matching 
+# in_tree <- is_in_tree(ott_id(synons))
+# in_tree
+# is.binary.tree(tree)
+```
+
+### Full dataset
+```{r, warning=FALSE}
+dat$species <- as.character(dat$species)
+
+synons <- tnrs_match_names(unique(dat$species))
+
+tree3 <- tol_induced_subtree(ott_ids = synons$ott_id, label_format = "name")
+
+plot(tree3, show.tip.label = T, cex = 0.8, no.margin = TRUE) 
+
+#ALL NAMES ARE MATCHING, IN TREE,AND TREE IS BINARY
+intersect(as.character(tree3$tip.label), dat$species) ## checking which names are matching 
+# 
+setdiff(dat$species, as.character(tree3$tip.label)) ## checking which names are not matching 
+
+#inspecting names its not matching 
+inspect(synons, taxon_name = "Drosophila_melanogaster")
+synon1 <- update(synons, taxon_name = "Drosophila_melanogaster", new_row_number = 1)
+inspect(synons, taxon_name = "Telostylinus_angusticollis")
+synon2 <- update(synon1, taxon_name = "Telostylinus_angusticollis", new_row_number = 1)
+inspect(synons, taxon_name = "Bracon_hebetor")
+synon3 <- update(synon2, taxon_name = "Bracon_hebetor", new_row_number = 1)
+inspect(synons, taxon_name = "Bactrocera_cucurbitae")
+synon4 <- update(synon3, taxon_name = "Bactrocera_cucurbitae", new_row_number = 1)
+inspect(synons, taxon_name = "Chrysoperla_carnea")
+synon5 <- update(synon4, taxon_name = "Chrysoperla_carnea", new_row_number = 1)
+
+tree4 <- tol_induced_subtree(ott_ids = synon5$ott_id, label_format= "name")
+plot(tree4, show.tip.label = T, cex = 0.8, no.margin = TRUE)
+
+#need to change dataset names to match tree names
+dat$species[dat$species == "Telostylinus_angusticollis"] <- "Derocephalus_angusticollis"
+dat$species[dat$species == "Bracon_hebetor"] <- "Habrobracon_hebetor"
+dat$species[dat$species == "Bactrocera_cucurbitae"] <- "Zeugodacus_cucurbitae"
+
+setdiff(dat$species, as.character(tree4$tip.label)) ## checking which names are not matching 
+# in_tree <- is_in_tree(ott_id(synons))
+# in_tree
+# is.binary.tree(tree)
+```
+
+
+# Meta-analysis {.tabset}
+
+## MA with variance
 ```{r}
 
 m1 <- rma.mv(yi = lnRR, V = var, random = list(~1|esID,
@@ -95,7 +186,43 @@ orchard<- orchard_plot(m1, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard p
 orchard
 ```
 
-### MA with equal variance
+### MA with species phylogeny variance co-variance matrix
+```{r}
+#creating matrix
+branchlength<- compute.brlen(tree2, method="Grafen", power=1)
+VCV_reduced <- vcv(branchlength, corr=TRUE)
+
+# match(dat2$species,rownames(VCV_reduced)) 
+
+dat2$species <- as.factor(dat2$species)
+
+m1a <- rma.mv(yi = lnRR, V = var, random = list(~1|esID,
+                                               ~1|paperID,
+                                               ~1|order,
+                                               ~1|species),
+              R=list(species=VCV_reduced),
+              control=list(iter.max=1000, rel.tol=1e-8),
+                 test = "t",
+                 data = dat2)
+summary(m1a) 
+i2_ml(m1a)
+
+orchard<- orchard_plot(m1a, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard plot 
+  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5)+ # prediction intervals
+  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2)+ # confidence intervals
+  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
+  # scale_colour_manual(values = "darkorange")+ # change colours
+  # scale_fill_manual(values="darkorange")+ 
+  scale_size_continuous(range = c(1, 7))+ # change point scaling
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
+        text = element_text(size = 24), # change font sizes
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 13)) 
+
+orchard
+```
+
+## MA with equal variance
 ```{r}
 m2 <- rma.mv(yi = lnRR, V = 1, random = list(~1|esID,
                                             ~1|paperID,
@@ -120,16 +247,51 @@ orchard2<- orchard_plot(m2, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard 
 orchard2
 ```
 
-### Figure 1
+### MA with species phylogeny variance co-variance matrix
+```{r}
+#creating matrix
+branchlength<- compute.brlen(tree4, method="Grafen", power=1)
+VCV_full <- vcv(branchlength, corr=TRUE)
+
+# match(dat$species,rownames(VCV_full)) 
+
+dat$species <- as.factor(dat$species)
+
+m2a <- rma.mv(yi = lnRR, V = 1, random = list(~1|ï..esID,
+                                               ~1|paperID,
+                                               ~1|order,
+                                               ~1|species),
+              R=list(species=VCV_full),
+                 test = "t",
+                 data = dat)
+summary(m2a) 
+i2_ml(m2a)
+
+orchard<- orchard_plot(m2a, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard plot 
+  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5)+ # prediction intervals
+  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2)+ # confidence intervals
+  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
+  # scale_colour_manual(values = "darkorange")+ # change colours
+  # scale_fill_manual(values="darkorange")+ 
+  scale_size_continuous(range = c(1, 7))+ # change point scaling
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
+        text = element_text(size = 24), # change font sizes
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 13)) 
+
+orchard
+```
+
+## Figure 1
 ```{r, fig.width=15, fig.height=7, message=FALSE}
 panel1 <- (orchard + orchard2) + plot_annotation(tag_levels = "A")
 panel1
 ```
 
-## Meta-regression {.tabset}
+# Meta-regression {.tabset}
 Meta-regression was done using studies for which we could calculate variance
 
-### Sex
+## Sex
 ```{r}
 m3<- rma.mv(yi = lnRR, V = var, mod = ~parent-1, random = list(~1|esID,
                                                ~1|paperID,
@@ -154,7 +316,7 @@ orchard3 <- orchard_plot(m3, mod = "parent", xlab = "lnRR", alpha=0.4) +
 orchard3
 ```
 
-### lifestage
+## lifestage
 ```{r}
 m4 <- rma.mv(yi = lnRR, V = var, mod = ~lifestage-1, random = list(~1|esID,
                                                ~1|paperID,
@@ -179,14 +341,14 @@ orchard4 <- orchard_plot(m4, mod = "lifestage", xlab = "lnRR", alpha=0.4) +
 orchard4
 ```
 
-### Figure 2
+## Figure 2
 ```{r, fig.width=15, fig.height=7, message=FALSE}
 panel2 <- (orchard4 + orchard3) + plot_annotation(tag_levels = "A")
 panel2
 ```
 
 
-### Figure 3
+## Figure 3
 ```{r}
 m5 <- rma.mv(yi = lnRR, V = var, mod = ~order-1, random = list(~1|esID,
                                                ~1|paperID),
@@ -208,15 +370,15 @@ orchard5 <- orchard_plot(m5, mod = "order", xlab = "lnRR", alpha=0.4) +
 orchard5
 ```
 
-## Publication bias and sensitivity analysis {.tabset}
+# Publication bias and sensitivity analysis {.tabset}
 PB and sensitivity analysis was done using studies for which we could calculate variance
 
-### Funnel plot
+## Funnel plot
 ```{r}
 funnel(m1)
 ```
 
-### Leave-one-group-out sensitivity analysis
+## Leave-one-group-out sensitivity analysis
 ```{r}
 
 dat2<- dat2 %>% mutate(leave_out = paste(first_author, year, sep = "_"))
