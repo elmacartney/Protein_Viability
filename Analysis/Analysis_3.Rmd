@@ -1,5 +1,5 @@
 ---
-title: "Supplementary Material S2"
+title: "Supplementary Material S3"
 output: 
     rmdformats::readthedown:
       code_folding: hide
@@ -76,7 +76,7 @@ dat$lnRR <- log(dat$high_protein_asin) - log(dat$low_protein_asin)
 ## Creating species tree for analysis
 
 ### Reduced dataset
-```{r, warning=FALSE}
+```{r, warning=FALSE, results = 'hide', message = FALSE}
 dat2$species <- as.character(dat2$species)
 
 synons <- tnrs_match_names(unique(dat2$species))
@@ -117,7 +117,7 @@ setdiff(dat2$species, as.character(tree2$tip.label)) ## checking which names are
 ```
 
 ### Full dataset
-```{r, warning=FALSE}
+```{r, warning=FALSE, results = 'hide', message = FALSE}
 dat$species <- as.character(dat$species)
 
 synons <- tnrs_match_names(unique(dat$species))
@@ -162,10 +162,19 @@ setdiff(dat$species, as.character(tree4$tip.label)) ## checking which names are 
 
 ## MA with variance
 ```{r}
+#creating matrix
+branchlength<- compute.brlen(tree2, method="Grafen", power=1)
+VCV_reduced <- vcv(branchlength, corr=TRUE)
+
+# match(dat2$species,rownames(VCV_reduced)) 
+
+dat2$species <- as.factor(dat2$species)
 
 m1 <- rma.mv(yi = lnRR, V = var, random = list(~1|esID,
                                                ~1|paperID,
-                                               ~1|order),
+                                               ~1|species),
+              R=list(species=VCV_reduced),
+              control=list(iter.max=1000, rel.tol=1e-8),
                  test = "t",
                  data = dat2)
 summary(m1) 
@@ -186,47 +195,21 @@ orchard<- orchard_plot(m1, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard p
 orchard
 ```
 
-### MA with species phylogeny variance co-variance matrix
-```{r}
-#creating matrix
-branchlength<- compute.brlen(tree2, method="Grafen", power=1)
-VCV_reduced <- vcv(branchlength, corr=TRUE)
-
-# match(dat2$species,rownames(VCV_reduced)) 
-
-dat2$species <- as.factor(dat2$species)
-
-m1a <- rma.mv(yi = lnRR, V = var, random = list(~1|esID,
-                                               ~1|paperID,
-                                               ~1|order,
-                                               ~1|species),
-              R=list(species=VCV_reduced),
-              control=list(iter.max=1000, rel.tol=1e-8),
-                 test = "t",
-                 data = dat2)
-summary(m1a) 
-i2_ml(m1a)
-
-orchard<- orchard_plot(m1a, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard plot 
-  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5)+ # prediction intervals
-  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2)+ # confidence intervals
-  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
-  # scale_colour_manual(values = "darkorange")+ # change colours
-  # scale_fill_manual(values="darkorange")+ 
-  scale_size_continuous(range = c(1, 7))+ # change point scaling
-  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
-        text = element_text(size = 24), # change font sizes
-        legend.title = element_text(size = 15),
-        legend.text = element_text(size = 13)) 
-
-orchard
-```
 
 ## MA with equal variance
 ```{r}
+#creating matrix
+branchlength<- compute.brlen(tree4, method="Grafen", power=1)
+VCV_full <- vcv(branchlength, corr=TRUE)
+
+# match(dat$species,rownames(VCV_full)) 
+
+dat$species <- as.factor(dat$species)
+
 m2 <- rma.mv(yi = lnRR, V = 1, random = list(~1|esID,
-                                            ~1|paperID,
-                                            ~1|order),
+                                               ~1|paperID,
+                                               ~1|species),
+              R=list(species=VCV_full),
                  test = "t",
                  data = dat)
 summary(m2) 
@@ -247,42 +230,8 @@ orchard2<- orchard_plot(m2, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard 
 orchard2
 ```
 
-### MA with species phylogeny variance co-variance matrix
-```{r}
-#creating matrix
-branchlength<- compute.brlen(tree4, method="Grafen", power=1)
-VCV_full <- vcv(branchlength, corr=TRUE)
 
-# match(dat$species,rownames(VCV_full)) 
-
-dat$species <- as.factor(dat$species)
-
-m2a <- rma.mv(yi = lnRR, V = 1, random = list(~1|ï..esID,
-                                               ~1|paperID,
-                                               ~1|order,
-                                               ~1|species),
-              R=list(species=VCV_full),
-                 test = "t",
-                 data = dat)
-summary(m2a) 
-i2_ml(m2a)
-
-orchard<- orchard_plot(m2a, mod = "Int", xlab = "lnRR", alpha=0.4) +  # Orchard plot 
-  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5)+ # prediction intervals
-  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2)+ # confidence intervals
-  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
-  # scale_colour_manual(values = "darkorange")+ # change colours
-  # scale_fill_manual(values="darkorange")+ 
-  scale_size_continuous(range = c(1, 7))+ # change point scaling
-  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
-        text = element_text(size = 24), # change font sizes
-        legend.title = element_text(size = 15),
-        legend.text = element_text(size = 13)) 
-
-orchard
-```
-
-## Figure 1
+## Figure 2
 ```{r, fig.width=15, fig.height=7, message=FALSE}
 panel1 <- (orchard + orchard2) + plot_annotation(tag_levels = "A")
 panel1
@@ -295,7 +244,8 @@ Meta-regression was done using studies for which we could calculate variance
 ```{r}
 m3<- rma.mv(yi = lnRR, V = var, mod = ~parent-1, random = list(~1|esID,
                                                ~1|paperID,
-                                               ~1|order),
+                                               ~1|species),
+              R=list(species=VCV_reduced),
                  test = "t",
                  data = dat2)
 summary(m3) 
@@ -320,7 +270,8 @@ orchard3
 ```{r}
 m4 <- rma.mv(yi = lnRR, V = var, mod = ~lifestage-1, random = list(~1|esID,
                                                ~1|paperID,
-                                               ~1|order),
+                                               ~1|species),
+              R=list(species=VCV_reduced),
                  test = "t",
                  data = dat2)
 summary(m4) 
@@ -341,33 +292,10 @@ orchard4 <- orchard_plot(m4, mod = "lifestage", xlab = "lnRR", alpha=0.4) +
 orchard4
 ```
 
-## Figure 2
+## Figure 3
 ```{r, fig.width=15, fig.height=7, message=FALSE}
 panel2 <- (orchard4 + orchard3) + plot_annotation(tag_levels = "A")
 panel2
-```
-
-
-## Figure 3
-```{r}
-m5 <- rma.mv(yi = lnRR, V = var, mod = ~order-1, random = list(~1|esID,
-                                               ~1|paperID),
-                 test = "t",
-                 data = dat2)
-
-orchard5 <- orchard_plot(m5, mod = "order", xlab = "lnRR", alpha=0.4) + 
-  geom_errorbarh(aes(xmin = lowerPR, xmax = upperPR), height = 0, show.legend = FALSE, size = 1.1, alpha = 0.5) + # prediction interval
-  scale_colour_manual(values = c("grey34","grey34", "grey34","grey34", "grey34", "grey34", "grey34", "grey34", "grey34")) +
-  scale_fill_manual(values=c("grey34","grey34", "grey34","grey34", "grey34", "grey34", "grey34", "grey34", "grey34")) +
-  geom_errorbarh(aes(xmin = lowerCL, xmax = upperCL), height = 0.05, show.legend = FALSE, size = 2) +
-  geom_point(aes(fill = name),  size = 5, shape = 21)+ # mean estimate
-  scale_size_continuous(range = c(1, 7))+ # change point scaling
-  theme(panel.border = element_rect(colour = "black", fill=NA, size=1.3), # border around the plot
-       text = element_text(size = 10), # change font sizes
-        legend.title = element_text(size = 10),
-        legend.text = element_text(size = 10)) 
-
-orchard5
 ```
 
 # Publication bias and sensitivity analysis {.tabset}
